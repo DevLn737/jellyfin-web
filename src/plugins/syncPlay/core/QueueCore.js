@@ -38,6 +38,7 @@ class QueueCore {
             return;
         }
 
+        this.manager.getPlaybackCore().setBasePlaybackRate(newPlayQueue.PlaybackRate);
         console.debug('SyncPlay updatePlayQueue:', newPlayQueue);
 
         const serverId = apiClient.serverInfo().Id;

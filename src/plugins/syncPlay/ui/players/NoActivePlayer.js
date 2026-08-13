@@ -4,7 +4,10 @@
  */
 
 import { playbackManager } from '../../../../components/playback/playbackmanager';
+import toast from '../../../../components/toast/toast';
+import globalize from '../../../../lib/globalize';
 import SyncPlay from '../../core';
+import { getPlaybackRateErrorMessage } from '../../core/PlaybackRate';
 import QueueManager from './QueueManager';
 
 let syncPlayManager;
@@ -32,6 +35,7 @@ class NoActivePlayer extends SyncPlay.Players.GenericPlayer {
         playbackManager._localPause = playbackManager.pause;
         playbackManager._localSeek = playbackManager.seek;
         playbackManager._localSendCommand = playbackManager.sendCommand;
+        playbackManager._localSetPlaybackRate = playbackManager.setPlaybackRate;
 
         // Override local callbacks.
         playbackManager.playPause = this.playPauseRequest;
@@ -39,6 +43,7 @@ class NoActivePlayer extends SyncPlay.Players.GenericPlayer {
         playbackManager.pause = this.pauseRequest;
         playbackManager.seek = this.seekRequest;
         playbackManager.sendCommand = this.sendCommandRequest;
+        playbackManager.setPlaybackRate = this.setPlaybackRateRequest;
 
         // Save local callbacks.
         playbackManager._localPlayQueueManager = playbackManager._playQueueManager;
@@ -90,6 +95,7 @@ class NoActivePlayer extends SyncPlay.Players.GenericPlayer {
         playbackManager.pause = playbackManager._localPause;
         playbackManager.seek = playbackManager._localSeek;
         playbackManager.sendCommand = playbackManager._localSendCommand;
+        playbackManager.setPlaybackRate = playbackManager._localSetPlaybackRate;
 
         playbackManager._playQueueManager = playbackManager._localPlayQueueManager; // TODO: should move elsewhere?
 
@@ -141,6 +147,19 @@ class NoActivePlayer extends SyncPlay.Players.GenericPlayer {
     seekRequest(positionTicks) {
         const controller = syncPlayManager.getController();
         controller.seek(positionTicks);
+    }
+
+    /**
+     * Overrides PlaybackManager's setPlaybackRate method.
+     * The local player is updated only after an authoritative server command.
+     * @param {number} playbackRate The requested playback rate.
+     * @returns {Promise} The SyncPlay request.
+     */
+    setPlaybackRateRequest(playbackRate) {
+        const controller = syncPlayManager.getController();
+        return controller.setPlaybackRate(playbackRate).catch((response) => {
+            toast(globalize.translate(getPlaybackRateErrorMessage(response?.status)));
+        });
     }
 
     /**
@@ -214,6 +233,14 @@ class NoActivePlayer extends SyncPlay.Players.GenericPlayer {
         } else {
             playbackManager.seek(positionTicks, this.player);
         }
+    }
+
+    /**
+     * Sets the local player's playback rate without updating the user's saved rate.
+     * @param {number} playbackRate The playback rate to apply.
+     */
+    localSetPlaybackRate(playbackRate) {
+        this.player?.setPlaybackRate(playbackRate);
     }
 
     /**

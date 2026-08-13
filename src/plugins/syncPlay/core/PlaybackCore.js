@@ -6,6 +6,12 @@
 import Events from '../../../utils/events.ts';
 import { toBoolean, toFloat } from '../../../utils/string.ts';
 import * as Helper from './Helper';
+import {
+    DEFAULT_PLAYBACK_RATE,
+    estimatePositionTicks,
+    getPlaybackRateCorrection,
+    normalizePlaybackRate
+} from './PlaybackRate';
 import { getSetting } from './Settings';
 
 /**
@@ -26,6 +32,8 @@ class PlaybackCore {
         this.lastCommand = null; // Last scheduled playback command, might not be the latest one.
         this.scheduledCommandTimeout = null;
         this.syncTimeout = null;
+        this.basePlaybackRate = DEFAULT_PLAYBACK_RATE;
+        this.effectivePlaybackRate = DEFAULT_PLAYBACK_RATE;
 
         this.loadPreferences();
     }
@@ -73,6 +81,7 @@ class PlaybackCore {
      * Called by player wrapper when playback starts.
      */
     onPlaybackStart(player, state) {
+        this.restoreBasePlaybackRate();
         Events.trigger(this.manager, 'playbackstart', [player, state]);
     }
 
@@ -88,6 +97,7 @@ class PlaybackCore {
      * Called by player wrapper when playback unpauses.
      */
     onUnpause() {
+        this.restoreBasePlaybackRate();
         Events.trigger(this.manager, 'unpause');
     }
 
@@ -95,6 +105,7 @@ class PlaybackCore {
      * Called by player wrapper when playback pauses.
      */
     onPause() {
+        this.restoreBasePlaybackRate();
         Events.trigger(this.manager, 'pause');
     }
 
@@ -113,6 +124,7 @@ class PlaybackCore {
      */
     onReady() {
         this.playerIsBuffering = false;
+        this.restoreBasePlaybackRate();
         this.sendBufferingRequest(false);
         Events.trigger(this.manager, 'ready');
     }
@@ -122,6 +134,7 @@ class PlaybackCore {
      */
     onBuffering() {
         this.playerIsBuffering = true;
+        this.restoreBasePlaybackRate();
         this.sendBufferingRequest(true);
         Events.trigger(this.manager, 'buffering');
     }
@@ -166,16 +179,73 @@ class PlaybackCore {
     }
 
     /**
+     * Updates the persistent SyncPlay group playback rate.
+     * @param {number|null|undefined} playbackRate The group playback rate.
+     * @param {boolean} applyLocally Whether to apply the rate to the active player.
+     * @returns {number} The normalized playback rate.
+     */
+    setBasePlaybackRate(playbackRate, applyLocally = true) {
+        const normalizedRate = normalizePlaybackRate(playbackRate);
+        this.basePlaybackRate = normalizedRate;
+
+        if (applyLocally) {
+            this.restoreBasePlaybackRate();
+        }
+
+        console.debug('SyncPlay playback rate state', {
+            basePlaybackRate: this.basePlaybackRate,
+            effectivePlaybackRate: this.effectivePlaybackRate
+        });
+
+        return normalizedRate;
+    }
+
+    /**
+     * Gets the persistent SyncPlay group playback rate.
+     * @returns {number} The group playback rate.
+     */
+    getBasePlaybackRate() {
+        return this.basePlaybackRate;
+    }
+
+    /**
+     * Applies a playback rate without issuing a SyncPlay API request.
+     * @param {number} playbackRate The playback rate to apply.
+     */
+    localSetPlaybackRate(playbackRate) {
+        this.effectivePlaybackRate = playbackRate;
+
+        if (!this.manager || this.manager.isRemote()) {
+            return;
+        }
+
+        const playerWrapper = this.manager.getPlayerWrapper();
+        if (playerWrapper.hasPlaybackRate()) {
+            playerWrapper.localSetPlaybackRate(playbackRate);
+        }
+    }
+
+    /**
+     * Restores the persistent group playback rate after a temporary correction.
+     */
+    restoreBasePlaybackRate() {
+        this.localSetPlaybackRate(this.basePlaybackRate);
+    }
+
+    /**
      * Applies a command and checks the playback state if a duplicate command is received.
      * @param {Object} command The playback command.
      */
     async applyCommand(command) {
+        command.PlaybackRate = this.setBasePlaybackRate(command.PlaybackRate, false);
+
         // Check if duplicate.
         if (this.lastCommand
             && this.lastCommand.When.getTime() === command.When.getTime()
             && this.lastCommand.PositionTicks === command.PositionTicks
             && this.lastCommand.Command === command.Command
             && this.lastCommand.PlaylistItemId === command.PlaylistItemId
+            && this.lastCommand.PlaybackRate === command.PlaybackRate
         ) {
             // Duplicate command found, check playback state and correct if needed.
             console.debug('SyncPlay applyCommand: duplicate command received!', command);
@@ -417,10 +487,7 @@ class PlaybackCore {
         clearTimeout(this.syncTimeout);
 
         this.syncEnabled = false;
-        const playerWrapper = this.manager.getPlayerWrapper();
-        if (playerWrapper.hasPlaybackRate()) {
-            playerWrapper.setPlaybackRate(1.0);
-        }
+        this.restoreBasePlaybackRate();
 
         this.manager.clearSyncIcon();
     }
@@ -489,7 +556,11 @@ class PlaybackCore {
      */
     estimateCurrentTicks(ticks, when, currentTime = new Date()) {
         const remoteTime = this.timeSyncCore.localDateToRemote(currentTime);
-        return ticks + (remoteTime.getTime() - when.getTime()) * Helper.TicksPerMillisecond;
+        return estimatePositionTicks(
+            ticks,
+            remoteTime.getTime() - when.getTime(),
+            this.basePlaybackRate
+        );
     }
 
     /**
@@ -508,7 +579,7 @@ class PlaybackCore {
     syncPlaybackTime(timeUpdateData) {
         // See comments in constants section for more info.
         const syncMethodThreshold = this.maxDelaySpeedToSync;
-        let speedToSyncTime = this.speedToSyncDuration;
+        const speedToSyncTime = this.speedToSyncDuration;
 
         // Ignore sync when no player is active.
         if (!this.manager.isPlaybackActive()) {
@@ -556,31 +627,51 @@ class PlaybackCore {
             // TODO: SpeedToSync is failing on Safari (Mojave); even if playbackRate is supported, some delay seems to exist.
             // TODO: both SpeedToSync and SpeedToSync seem to have a hard time keeping up on Android Chrome as well.
             if (playerWrapper.hasPlaybackRate() && this.useSpeedToSync && absDiffMillis >= this.minDelaySpeedToSync && absDiffMillis < this.maxDelaySpeedToSync) {
-                // Fix negative speed when client is ahead of time more than speedToSyncTime.
-                const MinSpeed = 0.2;
-                if (diffMillis <= -speedToSyncTime * MinSpeed) {
-                    speedToSyncTime = Math.abs(diffMillis) / (1.0 - MinSpeed);
+                const correction = getPlaybackRateCorrection(
+                    this.basePlaybackRate,
+                    diffMillis,
+                    speedToSyncTime
+                );
+
+                if (!correction) {
+                    if (this.useSkipToSync) {
+                        this.localSeek(serverPositionTicks);
+                        this.syncEnabled = false;
+                        this.syncAttempts++;
+                        this.manager.showSyncIcon(`SkipToSync (${this.syncAttempts})`);
+
+                        this.syncTimeout = setTimeout(() => {
+                            this.restoreBasePlaybackRate();
+                            this.syncEnabled = true;
+                            this.manager.clearSyncIcon();
+                        }, syncMethodThreshold / 2);
+                    }
+
+                    console.debug('SyncPlay correction fallback', {
+                        basePlaybackRate: this.basePlaybackRate,
+                        diffMillis
+                    });
+                    return;
                 }
 
-                // SpeedToSync strategy.
-                const speed = 1 + diffMillis / speedToSyncTime;
-
-                if (speed <= 0) {
-                    console.error('SyncPlay error: speed should not be negative!', speed, diffMillis, speedToSyncTime);
-                }
-
-                playerWrapper.setPlaybackRate(speed);
+                const speed = correction.playbackRate;
+                this.localSetPlaybackRate(speed);
                 this.syncEnabled = false;
                 this.syncAttempts++;
                 this.manager.showSyncIcon(`SpeedToSync (x${speed.toFixed(2)})`);
 
                 this.syncTimeout = setTimeout(() => {
-                    playerWrapper.setPlaybackRate(1.0);
+                    this.restoreBasePlaybackRate();
                     this.syncEnabled = true;
                     this.manager.clearSyncIcon();
-                }, speedToSyncTime);
+                }, correction.durationMs);
 
-                console.log('SyncPlay SpeedToSync', speed);
+                console.debug('SyncPlay SpeedToSync', {
+                    basePlaybackRate: this.basePlaybackRate,
+                    effectivePlaybackRate: speed,
+                    diffMillis,
+                    durationMs: correction.durationMs
+                });
             } else if (this.useSkipToSync && absDiffMillis >= this.minDelaySkipToSync) {
                 // SkipToSync strategy.
                 this.localSeek(serverPositionTicks);
