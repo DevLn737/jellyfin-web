@@ -14,5 +14,8 @@ export function normalizeAsyncPlayerPosition(position: number, referencePosition
     const reportedUnitDifference = Math.abs(referencePosition - position);
     const secondsUnitDifference = Math.abs(referencePosition - positionAsMilliseconds);
 
-    return secondsUnitDifference < reportedUnitDifference ? positionAsMilliseconds : position;
+    // The native bridge may also truncate the seconds value to an integer.
+    // Its event position is already in milliseconds and retains sub-second
+    // precision, so prefer that value once the seconds contract is detected.
+    return secondsUnitDifference < reportedUnitDifference ? referencePosition : position;
 }
