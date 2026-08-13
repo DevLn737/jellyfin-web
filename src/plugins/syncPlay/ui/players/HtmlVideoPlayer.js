@@ -5,6 +5,7 @@
 
 import NoActivePlayer from './NoActivePlayer';
 import Events from '../../../../utils/events.ts';
+import { normalizeAsyncPlayerPosition } from './PlayerPosition.ts';
 
 /**
  * Class that manages the HtmlVideoPlayer for SyncPlay.
@@ -23,8 +24,9 @@ class HtmlVideoPlayer extends NoActivePlayer {
              * Gets current playback position.
              * @returns {Promise<number>} The player position, in milliseconds.
              */
-            this.currentTimeAsync = () => {
-                return this.player.currentTimeAsync();
+            this.currentTimeAsync = async () => {
+                const position = await this.player.currentTimeAsync();
+                return normalizeAsyncPlayerPosition(position, this.player.currentTime());
             };
         }
     }
