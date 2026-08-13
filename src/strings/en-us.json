@@ -1201,6 +1201,8 @@
     "MessageSyncPlayLibraryAccessDenied": "Access to this content is restricted.",
     "MessageSyncPlayNoGroupsAvailable": "No groups available. Start playing something first.",
     "MessageSyncPlayPlaybackPermissionRequired": "Playback permission required.",
+    "MessageSyncPlayPlaybackRateError": "The synchronized playback speed could not be changed.",
+    "MessageSyncPlayPlaybackRateNotSupported": "The playback speed cannot be changed because one or more group members do not support synchronized playback speed.",
     "MessageSyncPlayUserJoined": "{0} has joined the group.",
     "MessageSyncPlayUserLeft": "{0} has left the group.",
     "MessageTheFollowingLocationWillBeRemovedFromLibrary": "The following media locations will be removed from your library",

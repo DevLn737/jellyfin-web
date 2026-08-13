@@ -64,6 +64,23 @@ class Controller {
     }
 
     /**
+     * Sets the playback rate for the SyncPlay group.
+     * @param {number} playbackRate The requested playback rate.
+     * @returns {Promise} A promise that resolves when the server accepts the request.
+     */
+    setPlaybackRate(playbackRate) {
+        const apiClient = this.manager.getApiClient();
+        return apiClient.ajax({
+            type: 'POST',
+            data: JSON.stringify({
+                PlaybackRate: playbackRate
+            }),
+            url: apiClient.getUrl('SyncPlay/SetPlaybackRate'),
+            contentType: 'application/json'
+        });
+    }
+
+    /**
      * Starts playback in SyncPlay group.
      * @param {Object} options The play data.
      */

@@ -164,6 +164,15 @@ class GenericPlayer {
     }
 
     /**
+     * Sets the playback rate without issuing a SyncPlay API request.
+     * @param {number} value The playback rate.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    localSetPlaybackRate(value) {
+        // Override
+    }
+
+    /**
      * Gets the playback rate.
      * @returns {number} The playback rate.
      */
