@@ -11,9 +11,9 @@ export interface PlaybackRateCorrection {
 }
 
 export function getPlaybackRateErrorMessage(status?: number): string {
-    return status === 409
-        ? 'MessageSyncPlayPlaybackRateNotSupported'
-        : 'MessageSyncPlayPlaybackRateError';
+    return status === 409 ?
+        'MessageSyncPlayPlaybackRateNotSupported' :
+        'MessageSyncPlayPlaybackRateError';
 }
 
 export function normalizePlaybackRate(playbackRate: unknown): number {
