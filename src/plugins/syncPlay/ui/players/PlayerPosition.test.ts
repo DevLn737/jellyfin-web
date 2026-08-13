@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { normalizeAsyncPlayerPosition } from './PlayerPosition';
 
 describe('normalizeAsyncPlayerPosition', () => {
-    it('converts a seconds-based native position to milliseconds', () => {
-        expect(normalizeAsyncPlayerPosition(228, 228_770)).toBe(228_000);
+    it('uses the precise event position for a truncated seconds-based native position', () => {
+        expect(normalizeAsyncPlayerPosition(228, 228_770)).toBe(228_770);
     });
 
     it('preserves a millisecond-based position', () => {
