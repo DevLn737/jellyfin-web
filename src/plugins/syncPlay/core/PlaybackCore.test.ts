@@ -9,18 +9,34 @@ vi.mock('./Settings', () => ({
 describe('PlaybackCore playback rate state', () => {
     let playbackCore: PlaybackCore;
     let playerWrapper: {
+        currentTime: ReturnType<typeof vi.fn>;
         hasPlaybackRate: ReturnType<typeof vi.fn>;
+        isPlaying: ReturnType<typeof vi.fn>;
         localSetPlaybackRate: ReturnType<typeof vi.fn>;
+    };
+    let apiClient: {
+        requestSyncPlayBuffering: ReturnType<typeof vi.fn>;
+        requestSyncPlayReady: ReturnType<typeof vi.fn>;
     };
 
     beforeEach(() => {
         playerWrapper = {
+            currentTime: vi.fn(() => 10),
             hasPlaybackRate: vi.fn(() => true),
+            isPlaying: vi.fn(() => true),
             localSetPlaybackRate: vi.fn()
+        };
+        apiClient = {
+            requestSyncPlayBuffering: vi.fn(),
+            requestSyncPlayReady: vi.fn()
         };
         const manager = {
             clearSyncIcon: vi.fn(),
+            getApiClient: vi.fn(() => apiClient),
             getPlayerWrapper: vi.fn(() => playerWrapper),
+            getQueueCore: vi.fn(() => ({
+                getCurrentPlaylistItemId: vi.fn(() => 'item')
+            })),
             getTimeSyncCore: vi.fn(() => ({
                 remoteDateToLocal: (date: Date) => date,
                 localDateToRemote: (date: Date) => date
@@ -68,5 +84,23 @@ describe('PlaybackCore playback rate state', () => {
 
         expect(playbackCore.getBasePlaybackRate()).toBe(1.25);
         expect(playbackCore.scheduleSeek).toHaveBeenCalled();
+    });
+
+    it('reports buffering and ready only on state transitions', () => {
+        playbackCore.onBuffering();
+        playbackCore.onBuffering();
+        playbackCore.onReady();
+        playbackCore.onReady();
+
+        expect(apiClient.requestSyncPlayBuffering).toHaveBeenCalledTimes(1);
+        expect(apiClient.requestSyncPlayReady).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports the first ready event after playback starts only once', () => {
+        playbackCore.onPlaybackStart(null, {});
+        playbackCore.onReady();
+        playbackCore.onReady();
+
+        expect(apiClient.requestSyncPlayReady).toHaveBeenCalledTimes(1);
     });
 });
