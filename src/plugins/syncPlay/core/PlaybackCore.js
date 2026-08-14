@@ -81,6 +81,7 @@ class PlaybackCore {
      * Called by player wrapper when playback starts.
      */
     onPlaybackStart(player, state) {
+        this.playerIsBuffering = true;
         this.restoreBasePlaybackRate();
         Events.trigger(this.manager, 'playbackstart', [player, state]);
     }
@@ -123,9 +124,12 @@ class PlaybackCore {
      * Called by player wrapper when player is ready to play.
      */
     onReady() {
+        const wasBuffering = this.playerIsBuffering;
         this.playerIsBuffering = false;
         this.restoreBasePlaybackRate();
-        this.sendBufferingRequest(false);
+        if (wasBuffering) {
+            this.sendBufferingRequest(false);
+        }
         Events.trigger(this.manager, 'ready');
     }
 
@@ -133,9 +137,12 @@ class PlaybackCore {
      * Called by player wrapper when player is buffering.
      */
     onBuffering() {
+        const wasBuffering = this.playerIsBuffering;
         this.playerIsBuffering = true;
         this.restoreBasePlaybackRate();
-        this.sendBufferingRequest(true);
+        if (!wasBuffering) {
+            this.sendBufferingRequest(true);
+        }
         Events.trigger(this.manager, 'buffering');
     }
 
