@@ -492,11 +492,23 @@ class PlaybackCore {
     clearScheduledCommand() {
         clearTimeout(this.scheduledCommandTimeout);
         clearTimeout(this.syncTimeout);
+        this.scheduledCommandTimeout = null;
+        this.syncTimeout = null;
 
         this.syncEnabled = false;
         this.restoreBasePlaybackRate();
 
         this.manager.clearSyncIcon();
+    }
+
+    /** Cancels group work before the wrapper restores the personal player state. */
+    resetPlaybackState() {
+        this.clearScheduledCommand();
+        this.lastCommand = null;
+        this.basePlaybackRate = DEFAULT_PLAYBACK_RATE;
+        this.effectivePlaybackRate = DEFAULT_PLAYBACK_RATE;
+        this.playerIsBuffering = false;
+        this.syncAttempts = 0;
     }
 
     /**

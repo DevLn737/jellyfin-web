@@ -280,6 +280,8 @@ class Manager {
         this.lastPlaybackCommand = cmd;
 
         if (!this.isPlaybackActive()) {
+            // Idle rate changes arrive as Stop commands, without starting a player.
+            this.playbackCore.setBasePlaybackRate(cmd.PlaybackRate, false);
             console.debug('SyncPlay processCommand: no active player!');
             return;
         }
@@ -408,7 +410,7 @@ class Manager {
         this.followingGroupPlayback = true;
         this.lastPlaybackCommand = null;
         this.queuedCommand = null;
-        this.playbackCore.syncEnabled = false;
+        this.playbackCore.resetPlaybackState();
         Events.trigger(this, 'enabled', [false]);
         this.playerWrapper.unbindFromPlayer();
 

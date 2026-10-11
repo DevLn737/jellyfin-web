@@ -60,6 +60,11 @@ capability conflicts when joining from either layout. Audio and subtitle
 selection remain local to each participant; external audio needs the paired
 server and Desktop fixes.
 
+Leaving a group cancels correction and scheduled playback timers before
+restoring personal speed. Idle groups retain rates received in authoritative
+Stop commands. Webpack excludes test files from dynamic plugin contexts so
+Vitest and its dependencies are absent from the deployed client.
+
 Quality checks passed with Node `24.21.0` and npm `11.19.0`:
 
 ```sh
@@ -67,6 +72,7 @@ npm ci --no-audit
 npm run lint
 npm run build:check
 npm test -- --maxWorkers=2
+npm run build:production -- --stats=errors-warnings
 ```
 
 The test suite includes regressions for personal speed restoration, both group
