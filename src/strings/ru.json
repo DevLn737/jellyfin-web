@@ -1133,6 +1133,8 @@
     "MessageSyncPlayCreateGroupDenied": "Требуется разрешение для создания группы.",
     "MessageSyncPlayGroupDoesNotExist": "Не удалось присоединиться к группе, поскольку она не существует.",
     "MessageSyncPlayPlaybackPermissionRequired": "Требуется разрешение на воспроизведение.",
+    "MessageSyncPlayPlaybackRateError": "Не удалось изменить скорость совместного воспроизведения.",
+    "MessageSyncPlayPlaybackRateNotSupported": "Нельзя изменить скорость совместного воспроизведения: один или несколько участников группы не поддерживают эту функцию.",
     "MessageSyncPlayNoGroupsAvailable": "Никакие группы не доступны. Сначала начните воспроизводить что-нибудь.",
     "MessageSyncPlayGroupWait": "{0} буферизуется…",
     "MessageSyncPlayUserLeft": "{0} покинул группу.",

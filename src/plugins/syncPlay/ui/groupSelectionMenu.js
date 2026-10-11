@@ -2,6 +2,7 @@ import { PluginType } from 'constants/pluginType';
 import { ServerConnections } from 'lib/jellyfin-apiclient';
 
 import SyncPlaySettingsEditor from './settings/SettingsEditor';
+import { showJoinGroupError } from './JoinGroupError';
 import loading from '../../../components/loading/loading';
 import toast from '../../../components/toast/toast';
 import actionsheet from '../../../components/actionSheet/actionSheet';
@@ -47,8 +48,8 @@ class GroupSelectionMenu {
     showNewJoinGroupSelection(button, user, apiClient) {
         const policy = user.localUser ? user.localUser.Policy : {};
 
-        apiClient.getSyncPlayGroups().then(function (response) {
-            response.json().then(function (groups) {
+        return apiClient.getSyncPlayGroups().then(function (response) {
+            return response.json().then(function (groups) {
                 const menuItems = groups.map(function (group) {
                     return {
                         name: group.GroupName,
@@ -85,15 +86,15 @@ class GroupSelectionMenu {
                     dialogClass: 'syncPlayGroupMenu'
                 };
 
-                actionsheet.show(menuOptions).then(function (id) {
+                const selection = actionsheet.show(menuOptions).then(function (id) {
                     if (id == 'new-group') {
-                        apiClient.createSyncPlayGroup({
+                        return apiClient.createSyncPlayGroup({
                             GroupName: globalize.translate('SyncPlayGroupDefaultTitle', user.localUser.Name)
                         });
                     } else if (id) {
-                        apiClient.joinSyncPlayGroup({
+                        return apiClient.joinSyncPlayGroup({
                             GroupId: id
-                        });
+                        }).catch(showJoinGroupError);
                     }
                 }).catch((error) => {
                     if (error) {
@@ -102,6 +103,7 @@ class GroupSelectionMenu {
                 });
 
                 loading.hide();
+                return selection;
             });
         }).catch(function (error) {
             console.error(error);

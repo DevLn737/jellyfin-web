@@ -39,6 +39,41 @@ Jellyfin Web is the frontend used for most of the clients available for end user
 
 ## Build Process
 
+### Synchronized playback speed fork
+
+The `syncplay-rate/12.2` branch extends upstream Web `v12.2`
+(`61b1f890365ad15138e943e694af723c1d47df2a`) with the synchronized playback
+speed changes from `dea3b29db21ffeaf6d5ccb0b968da3fc1f8f697b`. Modern and Legacy
+layouts use the same SyncPlay core and playback controls.
+
+This Web build requires the matching server extension: it advertises
+`SupportsSyncPlayPlaybackRate`, sends `POST /SyncPlay/SetPlaybackRate`, and
+reads the authoritative `PlaybackRate` from queue updates and commands.
+Missing rates retain the legacy `1.0` default. Group speeds are independent of
+temporary drift correction and the user's saved personal playback speed.
+The native player adapter retains support for JMP's seconds-based asynchronous
+position API while the Web-facing time contract remains milliseconds.
+
+The 12.2 port prevents personal speed restoration during a group playback start,
+routes general playback speed commands through the server, and displays
+capability conflicts when joining from either layout. Audio and subtitle
+selection remain local to each participant; external audio needs the paired
+server and Desktop fixes.
+
+Quality checks passed with Node `24.21.0` and npm `11.19.0`:
+
+```sh
+npm ci --no-audit
+npm run lint
+npm run build:check
+npm test -- --maxWorkers=2
+```
+
+The test suite includes regressions for personal speed restoration, both group
+join interfaces, authoritative speed controls, buffering transitions, and native
+position precision. Browser and Desktop playback acceptance is performed against
+the combined Server/Web image.
+
 ### Dependencies
 
 - [Node.js](https://nodejs.org/en/download)

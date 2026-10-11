@@ -5,8 +5,19 @@ import {
     estimatePositionTicks,
     getPlaybackRateCorrection,
     getPlaybackRateErrorMessage,
+    getSyncPlayErrorStatus,
     normalizePlaybackRate
 } from './PlaybackRate';
+
+describe('getSyncPlayErrorStatus', () => {
+    it.each([
+        [{ status: 409 }, 409],
+        [{ response: { status: 409 } }, 409],
+        [null, undefined]
+    ])('reads legacy and SDK errors safely', (error, expected) => {
+        expect(getSyncPlayErrorStatus(error)).toBe(expected);
+    });
+});
 
 describe('getPlaybackRateErrorMessage', () => {
     it('uses the capability explanation for conflicts', () => {

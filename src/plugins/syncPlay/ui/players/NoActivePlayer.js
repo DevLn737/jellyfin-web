@@ -7,10 +7,17 @@ import { playbackManager } from '../../../../components/playback/playbackmanager
 import toast from '../../../../components/toast/toast';
 import globalize from '../../../../lib/globalize';
 import SyncPlay from '../../core';
-import { getPlaybackRateErrorMessage } from '../../core/PlaybackRate';
+import { getPlaybackRateErrorMessage, getSyncPlayErrorStatus } from '../../core/PlaybackRate';
 import QueueManager from './QueueManager';
 
 let syncPlayManager;
+
+function requestPlaybackRate(playbackRate) {
+    const controller = syncPlayManager.getController();
+    return controller.setPlaybackRate(playbackRate).catch((error) => {
+        toast(globalize.translate(getPlaybackRateErrorMessage(getSyncPlayErrorStatus(error))));
+    });
+}
 
 /**
  * Class that manages the PlaybackManager when there's no active player.
@@ -36,6 +43,7 @@ class NoActivePlayer extends SyncPlay.Players.GenericPlayer {
         playbackManager._localSeek = playbackManager.seek;
         playbackManager._localSendCommand = playbackManager.sendCommand;
         playbackManager._localSetPlaybackRate = playbackManager.setPlaybackRate;
+        playbackManager._localGetPlaybackRate = playbackManager.getPlaybackRate;
 
         // Override local callbacks.
         playbackManager.playPause = this.playPauseRequest;
@@ -44,6 +52,7 @@ class NoActivePlayer extends SyncPlay.Players.GenericPlayer {
         playbackManager.seek = this.seekRequest;
         playbackManager.sendCommand = this.sendCommandRequest;
         playbackManager.setPlaybackRate = this.setPlaybackRateRequest;
+        playbackManager.getPlaybackRate = this.getGroupPlaybackRate;
 
         // Save local callbacks.
         playbackManager._localPlayQueueManager = playbackManager._playQueueManager;
@@ -96,6 +105,7 @@ class NoActivePlayer extends SyncPlay.Players.GenericPlayer {
         playbackManager.seek = playbackManager._localSeek;
         playbackManager.sendCommand = playbackManager._localSendCommand;
         playbackManager.setPlaybackRate = playbackManager._localSetPlaybackRate;
+        playbackManager.getPlaybackRate = playbackManager._localGetPlaybackRate;
 
         playbackManager._playQueueManager = playbackManager._localPlayQueueManager; // TODO: should move elsewhere?
 
@@ -156,10 +166,12 @@ class NoActivePlayer extends SyncPlay.Players.GenericPlayer {
      * @returns {Promise} The SyncPlay request.
      */
     setPlaybackRateRequest(playbackRate) {
-        const controller = syncPlayManager.getController();
-        return controller.setPlaybackRate(playbackRate).catch((response) => {
-            toast(globalize.translate(getPlaybackRateErrorMessage(response?.status)));
-        });
+        return requestPlaybackRate(playbackRate);
+    }
+
+    /** Returns the group speed for controls, independently of drift correction. */
+    getGroupPlaybackRate() {
+        return syncPlayManager.getPlaybackCore().getBasePlaybackRate();
     }
 
     /**
@@ -174,8 +186,8 @@ class NoActivePlayer extends SyncPlay.Players.GenericPlayer {
             playerWrapper.localSendCommand(_command);
         };
 
-        const ignoreCallback = () => {
-            // Do nothing.
+        const SetPlaybackRateCallback = (_command) => {
+            return requestPlaybackRate(Number(_command.Arguments.PlaybackRate));
         };
 
         const SetRepeatModeCallback = (_command) => {
@@ -188,7 +200,7 @@ class NoActivePlayer extends SyncPlay.Players.GenericPlayer {
 
         // Commands to override.
         const overrideCommands = {
-            PlaybackRate: ignoreCallback,
+            PlaybackRate: SetPlaybackRateCallback,
             SetRepeatMode: SetRepeatModeCallback,
             SetShuffleQueue: SetShuffleQueueCallback
         };
@@ -196,7 +208,7 @@ class NoActivePlayer extends SyncPlay.Players.GenericPlayer {
         // Handle command.
         const commandHandler = overrideCommands[command.Name];
         if (typeof commandHandler === 'function') {
-            commandHandler(command, player);
+            return commandHandler(command, player);
         } else {
             defaultAction(command);
         }

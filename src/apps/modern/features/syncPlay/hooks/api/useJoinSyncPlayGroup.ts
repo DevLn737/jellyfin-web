@@ -3,6 +3,7 @@ import { getSyncPlayApi } from '@jellyfin/sdk/lib/utils/api/sync-play-api';
 import { useMutation } from '@tanstack/react-query';
 
 import { useApi } from 'hooks/useApi';
+import { showJoinGroupError } from 'plugins/syncPlay/ui/JoinGroupError';
 import { queryClient } from 'utils/query/queryClient';
 
 import { QUERY_KEY } from './useSyncPlayGroups';
@@ -14,6 +15,7 @@ export const useJoinSyncPlayGroup = () => {
         mutationFn: (joinGroup: SyncPlayApiSyncPlayJoinGroupRequest) => (
             getSyncPlayApi(api!).syncPlayJoinGroup(joinGroup)
         ),
+        onError: showJoinGroupError,
         onSuccess: () => {
             // Invalidate any queries related to SyncPlay groups
             void queryClient.invalidateQueries({

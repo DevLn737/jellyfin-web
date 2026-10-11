@@ -16,6 +16,17 @@ export function getPlaybackRateErrorMessage(status?: number): string {
         'MessageSyncPlayPlaybackRateError';
 }
 
+/** Supports both the legacy API client and the SDK's Axios error shape. */
+export function getSyncPlayErrorStatus(error: unknown): number | undefined {
+    if (!error || typeof error !== 'object') return undefined;
+
+    const requestError = error as {
+        status?: number;
+        response?: { status?: number };
+    };
+    return requestError.response?.status ?? requestError.status;
+}
+
 export function normalizePlaybackRate(playbackRate: unknown): number {
     if (typeof playbackRate !== 'number'
         || !Number.isFinite(playbackRate)

@@ -1,6 +1,7 @@
 import escapeHtml from 'escape-html';
 
 import { PlayerEvent } from 'apps/legacy/features/playback/constants/playerEvent';
+import { restoreSavedPlaybackRate } from 'apps/legacy/features/playback/utils/playbackRate';
 import { AppFeature } from 'constants/appFeature';
 import { PluginType } from 'constants/pluginType';
 import { TICKS_PER_MINUTE, TICKS_PER_SECOND } from 'constants/time';
@@ -1609,11 +1610,7 @@ export default function (view) {
     }
 
     function updatePlaybackRate(player) {
-        // Restore playback speed control, if it exists in the session.
-        const playbackRateSpeed = sessionStorage.getItem('playbackRateSpeed');
-        if (playbackRateSpeed !== null) {
-            player.setPlaybackRate(playbackRateSpeed);
-        }
+        restoreSavedPlaybackRate(player, playbackManager.syncPlayEnabled);
     }
 
     shell.enableFullscreen();
