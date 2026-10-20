@@ -55,6 +55,7 @@ class HtmlVideoPlayer extends NoActivePlayer {
         };
 
         this._onPause = () => {
+            clearTimeout(self.notifyBuffering);
             self.onPause();
         };
 
@@ -74,7 +75,13 @@ class HtmlVideoPlayer extends NoActivePlayer {
 
         this._onWaiting = () => {
             clearTimeout(self.notifyBuffering);
+            // A paused player waits for data only while seeking. 'playing' never follows
+            // while paused, so reporting Buffering here would never be cleared and the
+            // group would stay waiting for this client.
+            if (self.player.paused()) return;
+
             self.notifyBuffering = setTimeout(() => {
+                if (self.player.paused()) return;
                 self.onBuffering();
             }, self.minBufferingThresholdMillis);
         };
@@ -103,6 +110,7 @@ class HtmlVideoPlayer extends NoActivePlayer {
         Events.off(this.player, 'timeupdate', this._onTimeUpdate);
         Events.off(this.player, 'playing', this._onPlaying);
         Events.off(this.player, 'waiting', this._onWaiting);
+        clearTimeout(this.notifyBuffering);
 
         this.player.setPlaybackRate(this.savedPlaybackRate);
     }

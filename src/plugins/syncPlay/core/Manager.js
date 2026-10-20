@@ -411,6 +411,7 @@ class Manager {
         this.lastPlaybackCommand = null;
         this.queuedCommand = null;
         this.playbackCore.resetPlaybackState();
+        this.queueCore.reset();
         Events.trigger(this, 'enabled', [false]);
         this.playerWrapper.unbindFromPlayer();
 

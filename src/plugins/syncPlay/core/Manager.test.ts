@@ -98,4 +98,28 @@ describe('SyncPlay group rate lifecycle', () => {
 
         expect(manager.playbackCore.getBasePlaybackRate()).toBe(1);
     });
+
+    it('applies the same group queue again after leaving and rejoining', () => {
+        const queue = manager.queueCore;
+        queue.init(manager);
+        const update = {
+            Reason: 'NewPlaylist',
+            LastUpdate: '2026-10-11T11:59:00Z',
+            Playlist: [],
+            PlayingItemIndex: -1,
+            StartPositionTicks: 0,
+            PlaybackRate: 1
+        };
+        const apiClient = { serverInfo: () => ({ Id: 'server' }) };
+        const onPlayQueueUpdate = vi.spyOn(queue, 'onPlayQueueUpdate');
+
+        queue.updatePlayQueue(apiClient, { ...update });
+        expect(queue.getLastUpdateTime()).toBe(Date.parse(update.LastUpdate));
+
+        manager.disableSyncPlay();
+        expect(queue.getLastUpdateTime()).toBe(0);
+
+        queue.updatePlayQueue(apiClient, { ...update });
+        expect(onPlayQueueUpdate).toHaveBeenCalledTimes(2);
+    });
 });
