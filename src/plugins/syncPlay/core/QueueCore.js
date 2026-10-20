@@ -26,6 +26,15 @@ class QueueCore {
     }
 
     /**
+     * Forgets the group's play queue. Called when leaving a group, so that the queue
+     * received after joining again is applied even if the group has not changed it.
+     */
+    reset() {
+        this.lastPlayQueueUpdate = null;
+        this.playlist = [];
+    }
+
+    /**
      * Handles the change in the play queue.
      * @param {Object} apiClient The ApiClient.
      * @param {Object} newPlayQueue The new play queue.
